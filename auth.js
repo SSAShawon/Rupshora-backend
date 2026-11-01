@@ -1,4 +1,3 @@
-
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 
@@ -10,9 +9,22 @@ export function createAuth(db) {
     secret: process.env.BETTER_AUTH_SECRET,
 
     trustedOrigins: ["http://localhost:3000"],
-
+    advanced: {
+      defaultCookieAttributes: {
+        sameSite: "lax",
+        secure: false,
+        httpOnly: true,
+      },
+    },
     emailAndPassword: {
       enabled: true,
+    },
+
+    socialProviders: {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      },
     },
   });
 }
