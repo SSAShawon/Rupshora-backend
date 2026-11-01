@@ -12,7 +12,10 @@ const PORT = process.env.PORT || 5000;
 // CORS
 app.use(
   cors({
-    origin: ["http://localhost:3000", `https://rupshora-khulna.vercel.app`],
+    origin: [
+      "http://localhost:3000",
+      "https://rupshora-khulna.vercel.app",
+    ],
     credentials: true,
   })
 );
