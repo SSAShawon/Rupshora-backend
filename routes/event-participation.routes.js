@@ -87,63 +87,58 @@ export default function participationRoutes(
   });
 
   // Get Events Joined by Logged-in User
-  router.get("/joined-events", async (req, res) => {
-    try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
+router.get("/joined-events", async (req, res) => {
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
 
-      if (!session?.user) {
-        return res.status(401).send({
-          success: false,
-          message: "Please login first",
-        });
-      }
-
-      const joinedRecords = await participantsCollection
-        .find({ userId: session.user.id })
-        .sort({ joinedAt: -1 })
-        .toArray();
-
-      const eventIds = joinedRecords
-        .map((record) => record.eventId)
-        .filter((id) => ObjectId.isValid(id))
-        .map((id) => new ObjectId(id));
-
-      const joinedEvents = await eventsCollection
-        .find({ _id: { $in: eventIds } })
-        .toArray();
-
-      const eventMap = new Map(
-        joinedEvents.map((event) => [event._id.toString(), event])
-      );
-
-      const events = joinedRecords
-        .map((record) => {
-          const event = eventMap.get(record.eventId);
-
-          if (!event) return null;
-
-          return {
-            ...event,
-            joinedAt: record.joinedAt,
-          };
-        })
-        .filter(Boolean);
-
-      res.status(200).send({
-        success: true,
-        count: events.length,
-        events,
-      });
-    } catch (error) {
-      console.error("Joined Events Error:", error);
-      res.status(500).send({
+    if (!session?.user) {
+      return res.status(401).send({
         success: false,
-        message: "Failed to fetch joined events",
+        message: "Please login first",
       });
     }
-  });
+
+    const joinedRecords = await participantsCollection
+      .find({ userId: session.user.id })
+      .toArray();
+
+    const eventIds = joinedRecords
+      .map((record) => record.eventId)
+      .filter((id) => ObjectId.isValid(id))
+      .map((id) => new ObjectId(id));
+
+    const joinedEvents = await eventsCollection
+      .find({ _id: { $in: eventIds } })
+      .sort({ eventDate: 1 })
+      .toArray();
+
+    const joinedAtMap = new Map(
+      joinedRecords.map((record) => [
+        record.eventId,
+        record.joinedAt,
+      ])
+    );
+
+    const events = joinedEvents.map((event) => ({
+      ...event,
+      joinedAt: joinedAtMap.get(event._id.toString()),
+    }));
+
+    res.status(200).send({
+      success: true,
+      count: events.length,
+      events,
+    });
+  } catch (error) {
+    console.error("Joined Events Error:", error);
+    res.status(500).send({
+      success: false,
+      message: "Failed to fetch joined events",
+    });
+  }
+});
 
   return router;
 }
