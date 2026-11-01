@@ -1,3 +1,4 @@
+
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 
@@ -8,14 +9,19 @@ export function createAuth(db) {
     baseURL: process.env.BETTER_AUTH_URL,
     secret: process.env.BETTER_AUTH_SECRET,
 
-    trustedOrigins: ["http://localhost:3000", `https://rupshora-khulna.vercel.app`],
+    trustedOrigins: [
+      "http://localhost:3000",
+      "https://rupshora-khulna.vercel.app",
+    ],
+
     advanced: {
       defaultCookieAttributes: {
         sameSite: "lax",
-        secure: false,
+        secure: process.env.NODE_ENV === "production",
         httpOnly: true,
       },
     },
+
     emailAndPassword: {
       enabled: true,
     },
