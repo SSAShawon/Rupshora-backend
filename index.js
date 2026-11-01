@@ -10,15 +10,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // CORS
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "https://rupshora-khulna.vercel.app",
-    ],
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://rupshora-khulna.vercel.app",
+  ],
+  credentials: true,
+}));
 
 // MongoDB Connection
 const client = new MongoClient(process.env.MONGODB_URI);
