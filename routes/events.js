@@ -1,17 +1,21 @@
+
 import express from "express";
 import { ObjectId } from "mongodb";
+import { fromNodeHeaders } from "better-auth/node";
 
-const router = express.Router();
+export default function eventRoutes(
+  eventsCollection,
+  participantsCollection,
+  auth
+) {
+  const router = express.Router();
 
-export default function eventRoutes(eventsCollection, participantsCollection) {
   // Get Featured Upcoming Events
   router.get("/featured", async (req, res) => {
     try {
-      const currentDate = new Date();
-
       const events = await eventsCollection
         .find({
-          eventDate: { $gt: currentDate },
+          eventDate: { $gt: new Date() },
         })
         .sort({ eventDate: 1 })
         .limit(6)
@@ -31,6 +35,7 @@ export default function eventRoutes(eventsCollection, participantsCollection) {
       });
     }
   });
+
   // Get Completed Events
   router.get("/completed", async (req, res) => {
     try {
@@ -53,14 +58,13 @@ export default function eventRoutes(eventsCollection, participantsCollection) {
       });
     }
   });
+
   // Get All Upcoming Events
   router.get("/", async (req, res) => {
     try {
-      const currentDate = new Date();
-
       const events = await eventsCollection
         .find({
-          eventDate: { $gt: currentDate },
+          eventDate: { $gt: new Date() },
         })
         .sort({ eventDate: 1 })
         .toArray();
@@ -124,9 +128,21 @@ export default function eventRoutes(eventsCollection, participantsCollection) {
     }
   });
 
-  // Create a New Event
+  // Create a New Event - Authenticated Users Only
   router.post("/", async (req, res) => {
     try {
+      // Verify Better Auth session
+      const session = await auth.api.getSession({
+        headers: fromNodeHeaders(req.headers),
+      });
+
+      if (!session?.user) {
+        return res.status(401).send({
+          success: false,
+          message: "Please login to create an event",
+        });
+      }
+
       const {
         title,
         description,
@@ -134,45 +150,76 @@ export default function eventRoutes(eventsCollection, participantsCollection) {
         thumbnail,
         location,
         eventDate,
-        creatorName,
-        creatorEmail,
       } = req.body;
 
+      // Validate required fields
       if (
-        !title ||
-        !description ||
-        !eventType ||
-        !thumbnail ||
-        !location ||
-        !eventDate ||
-        !creatorName ||
-        !creatorEmail
+        typeof title !== "string" ||
+        typeof description !== "string" ||
+        typeof eventType !== "string" ||
+        typeof thumbnail !== "string" ||
+        typeof location !== "string" ||
+        !title.trim() ||
+        !description.trim() ||
+        !eventType.trim() ||
+        !thumbnail.trim() ||
+        !location.trim() ||
+        !eventDate
       ) {
         return res.status(400).send({
           success: false,
-          message: "All fields are required",
+          message: "All event fields are required",
         });
       }
 
+      // Validate image URL
+      let imageUrl;
+
+      try {
+        imageUrl = new URL(thumbnail);
+
+        if (
+          imageUrl.protocol !== "http:" &&
+          imageUrl.protocol !== "https:"
+        ) {
+          throw new Error("Invalid image URL");
+        }
+      } catch {
+        return res.status(400).send({
+          success: false,
+          message: "Please provide a valid image URL",
+        });
+      }
+
+      // Validate future date
       const parsedDate = new Date(eventDate);
 
-      if (isNaN(parsedDate.getTime()) || parsedDate <= new Date()) {
+      if (
+        Number.isNaN(parsedDate.getTime()) ||
+        parsedDate <= new Date()
+      ) {
         return res.status(400).send({
           success: false,
           message: "Please provide a valid future event date",
         });
       }
 
+      // Create event using authenticated user's information
       const newEvent = {
-        title,
-        description,
-        eventType,
-        thumbnail,
-        location,
+        title: title.trim(),
+        description: description.trim(),
+        eventType: eventType.trim(),
+        thumbnail: imageUrl.toString(),
+        location: location.trim(),
         eventDate: parsedDate,
-        creatorName,
-        creatorEmail,
+
+        creatorId: session.user.id,
+        creatorName: session.user.name,
+        creatorEmail: session.user.email,
+        creatorPhoto: session.user.image || "",
+
         createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       const result = await eventsCollection.insertOne(newEvent);
@@ -180,7 +227,7 @@ export default function eventRoutes(eventsCollection, participantsCollection) {
       res.status(201).send({
         success: true,
         message: "Event created successfully",
-        insertedId: result.insertedId,
+        eventId: result.insertedId,
       });
     } catch (error) {
       console.error("Error creating event:", error);
