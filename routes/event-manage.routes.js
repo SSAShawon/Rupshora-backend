@@ -1,30 +1,19 @@
+
 import express from "express";
 import { ObjectId } from "mongodb";
-import { fromNodeHeaders } from "better-auth/node";
+import { verifyJWT } from "../middleware/verify-jwt.js";
 
 export default function manageEventRoutes(
   eventsCollection,
   participantsCollection,
-  auth,
 ) {
   const router = express.Router();
 
   // Get Events Created by Logged-in User
-  router.get("/my-events", async (req, res) => {
+  router.get("/my-events", verifyJWT, async (req, res) => {
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
-
-      if (!session?.user) {
-        return res.status(401).send({
-          success: false,
-          message: "Please login first",
-        });
-      }
-
       const events = await eventsCollection
-        .find({ creatorId: session.user.id })
+        .find({ creatorId: req.user.id })
         .sort({ createdAt: -1 })
         .toArray();
 
@@ -43,19 +32,8 @@ export default function manageEventRoutes(
   });
 
   // Update Event - Owner Only
-  router.patch("/:id", async (req, res) => {
+  router.patch("/:id", verifyJWT, async (req, res) => {
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
-
-      if (!session?.user) {
-        return res.status(401).send({
-          success: false,
-          message: "Please login first",
-        });
-      }
-
       const { id } = req.params;
 
       if (!ObjectId.isValid(id)) {
@@ -65,8 +43,14 @@ export default function manageEventRoutes(
         });
       }
 
-      const { title, description, eventType, thumbnail, location, eventDate } =
-        req.body;
+      const {
+        title,
+        description,
+        eventType,
+        thumbnail,
+        location,
+        eventDate,
+      } = req.body;
 
       if (
         typeof title !== "string" ||
@@ -104,7 +88,10 @@ export default function manageEventRoutes(
 
       const parsedDate = new Date(eventDate);
 
-      if (Number.isNaN(parsedDate.getTime()) || parsedDate <= new Date()) {
+      if (
+        Number.isNaN(parsedDate.getTime()) ||
+        parsedDate <= new Date()
+      ) {
         return res.status(400).send({
           success: false,
           message: "Please provide a valid future event date",
@@ -114,7 +101,7 @@ export default function manageEventRoutes(
       const result = await eventsCollection.updateOne(
         {
           _id: new ObjectId(id),
-          creatorId: session.user.id,
+          creatorId: req.user.id,
         },
         {
           $set: {
@@ -150,19 +137,8 @@ export default function manageEventRoutes(
   });
 
   // Delete Event - Owner Only
-  router.delete("/:id", async (req, res) => {
+  router.delete("/:id", verifyJWT, async (req, res) => {
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
-
-      if (!session?.user) {
-        return res.status(401).send({
-          success: false,
-          message: "Please login first",
-        });
-      }
-
       const { id } = req.params;
 
       if (!ObjectId.isValid(id)) {
@@ -174,7 +150,7 @@ export default function manageEventRoutes(
 
       const result = await eventsCollection.deleteOne({
         _id: new ObjectId(id),
-        creatorId: session.user.id,
+        creatorId: req.user.id,
       });
 
       if (result.deletedCount === 0) {

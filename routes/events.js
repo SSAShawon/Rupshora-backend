@@ -8,8 +8,7 @@ import createEventRoutes from "./event-create.routes.js";
 
 export default function eventRoutes(
   eventsCollection,
-  participantsCollection,
-  auth
+  participantsCollection
 ) {
   const router = express.Router();
 
@@ -18,8 +17,7 @@ export default function eventRoutes(
     "/",
     participationRoutes(
       eventsCollection,
-      participantsCollection,
-      auth
+      participantsCollection
     )
   );
 
@@ -28,15 +26,14 @@ export default function eventRoutes(
     "/",
     manageEventRoutes(
       eventsCollection,
-      participantsCollection,
-      auth
+      participantsCollection
     )
   );
 
   // Create New Event
   router.use(
     "/",
-    createEventRoutes(eventsCollection, auth)
+    createEventRoutes(eventsCollection)
   );
 
   // Public Events (Keep Last)

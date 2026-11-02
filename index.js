@@ -5,18 +5,18 @@ import "dotenv/config";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
 import { createAuth } from "./auth.js";
+import { verifyJWT } from "./middleware/verify-jwt.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // CORS
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://rupshora-khulna.vercel.app",
-  ],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "https://rupshora-khulna.vercel.app"],
+    credentials: true,
+  }),
+);
 
 // MongoDB Connection
 const client = new MongoClient(process.env.MONGODB_URI);
@@ -50,15 +50,20 @@ const eventsCollection = db.collection("events");
 const participantsCollection = db.collection("participants");
 
 // Event Routes
-app.use(
-  "/api/events",
-  eventRoutes(eventsCollection, participantsCollection, auth)
-);
+app.use("/api/events", eventRoutes(eventsCollection, participantsCollection));
 
 // Test Route
 app.get("/", (req, res) => {
   res.send({
     message: "Rupshora Server is Running!",
+  });
+});
+
+app.get("/api/test-protected", verifyJWT, (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "JWT Verified Successfully!",
+    user: req.user,
   });
 });
 

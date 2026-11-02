@@ -1,6 +1,6 @@
-
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
+import { jwt } from "better-auth/plugins";
 
 export function createAuth(db) {
   return betterAuth({
@@ -36,5 +36,9 @@ export function createAuth(db) {
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       },
     },
+
+    plugins: [
+      jwt()
+    ],
   });
 }

@@ -1,28 +1,17 @@
+
 import express from "express";
 import { ObjectId } from "mongodb";
-import { fromNodeHeaders } from "better-auth/node";
+import { verifyJWT } from "../middleware/verify-jwt.js";
 
 export default function participationRoutes(
   eventsCollection,
   participantsCollection,
-  auth
 ) {
   const router = express.Router();
 
   // Join an Event
-  router.post("/:id/join", async (req, res) => {
+  router.post("/:id/join", verifyJWT, async (req, res) => {
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
-
-      if (!session?.user) {
-        return res.status(401).send({
-          success: false,
-          message: "Please login to join an event",
-        });
-      }
-
       const { id } = req.params;
 
       if (!ObjectId.isValid(id)) {
@@ -52,7 +41,7 @@ export default function participationRoutes(
 
       const existingParticipant = await participantsCollection.findOne({
         eventId: id,
-        userId: session.user.id,
+        userId: req.user.id,
       });
 
       if (existingParticipant) {
@@ -64,10 +53,10 @@ export default function participationRoutes(
 
       const participant = {
         eventId: id,
-        userId: session.user.id,
-        userEmail: session.user.email,
-        userName: session.user.name,
-        userPhoto: session.user.image || "",
+        userId: req.user.id,
+        userEmail: req.user.email,
+        userName: req.user.name,
+        userPhoto: req.user.image || "",
         joinedAt: new Date(),
       };
 
@@ -87,58 +76,47 @@ export default function participationRoutes(
   });
 
   // Get Events Joined by Logged-in User
-router.get("/joined-events", async (req, res) => {
-  try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
+  router.get("/joined-events", verifyJWT, async (req, res) => {
+    try {
+      const joinedRecords = await participantsCollection
+        .find({ userId: req.user.id })
+        .toArray();
 
-    if (!session?.user) {
-      return res.status(401).send({
+      const eventIds = joinedRecords
+        .map((record) => record.eventId)
+        .filter((id) => ObjectId.isValid(id))
+        .map((id) => new ObjectId(id));
+
+      const joinedEvents = await eventsCollection
+        .find({ _id: { $in: eventIds } })
+        .sort({ eventDate: 1 })
+        .toArray();
+
+      const joinedAtMap = new Map(
+        joinedRecords.map((record) => [
+          record.eventId,
+          record.joinedAt,
+        ]),
+      );
+
+      const events = joinedEvents.map((event) => ({
+        ...event,
+        joinedAt: joinedAtMap.get(event._id.toString()),
+      }));
+
+      res.status(200).send({
+        success: true,
+        count: events.length,
+        events,
+      });
+    } catch (error) {
+      console.error("Joined Events Error:", error);
+      res.status(500).send({
         success: false,
-        message: "Please login first",
+        message: "Failed to fetch joined events",
       });
     }
-
-    const joinedRecords = await participantsCollection
-      .find({ userId: session.user.id })
-      .toArray();
-
-    const eventIds = joinedRecords
-      .map((record) => record.eventId)
-      .filter((id) => ObjectId.isValid(id))
-      .map((id) => new ObjectId(id));
-
-    const joinedEvents = await eventsCollection
-      .find({ _id: { $in: eventIds } })
-      .sort({ eventDate: 1 })
-      .toArray();
-
-    const joinedAtMap = new Map(
-      joinedRecords.map((record) => [
-        record.eventId,
-        record.joinedAt,
-      ])
-    );
-
-    const events = joinedEvents.map((event) => ({
-      ...event,
-      joinedAt: joinedAtMap.get(event._id.toString()),
-    }));
-
-    res.status(200).send({
-      success: true,
-      count: events.length,
-      events,
-    });
-  } catch (error) {
-    console.error("Joined Events Error:", error);
-    res.status(500).send({
-      success: false,
-      message: "Failed to fetch joined events",
-    });
-  }
-});
+  });
 
   return router;
 }

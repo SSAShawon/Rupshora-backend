@@ -1,23 +1,13 @@
-import express from "express";
-import { fromNodeHeaders } from "better-auth/node";
 
-export default function createEventRoutes(eventsCollection, auth) {
+import express from "express";
+import { verifyJWT } from "../middleware/verify-jwt.js";
+
+export default function createEventRoutes(eventsCollection) {
   const router = express.Router();
 
-  // Create Event - Authenticated Users Only
-  router.post("/", async (req, res) => {
+  // Create Event - JWT Authenticated Users Only
+  router.post("/", verifyJWT, async (req, res) => {
     try {
-      const session = await auth.api.getSession({
-        headers: fromNodeHeaders(req.headers),
-      });
-
-      if (!session?.user) {
-        return res.status(401).send({
-          success: false,
-          message: "Please login to create an event",
-        });
-      }
-
       const {
         title,
         description,
@@ -81,10 +71,10 @@ export default function createEventRoutes(eventsCollection, auth) {
         location: location.trim(),
         eventDate: parsedDate,
 
-        creatorId: session.user.id,
-        creatorName: session.user.name,
-        creatorEmail: session.user.email,
-        creatorPhoto: session.user.image || "",
+        creatorId: req.user.id,
+        creatorName: req.user.name,
+        creatorEmail: req.user.email,
+        creatorPhoto: req.user.image || "",
 
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -99,6 +89,7 @@ export default function createEventRoutes(eventsCollection, auth) {
       });
     } catch (error) {
       console.error("Create Event Error:", error);
+
       res.status(500).send({
         success: false,
         message: "Failed to create event",
