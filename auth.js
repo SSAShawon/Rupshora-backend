@@ -14,6 +14,14 @@ export function createAuth(db) {
       "https://rupshora-khulna.vercel.app",
     ],
 
+    advanced: {
+      defaultCookieAttributes: {
+        sameSite: "none",
+        secure: true,
+        httpOnly: true,
+      },
+    },
+
     account: {
       storeStateStrategy: "database",
     },
