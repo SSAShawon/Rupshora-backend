@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 
 export default function publicEventRoutes(
   eventsCollection,
-  participantsCollection
+  participantsCollection,
 ) {
   const router = express.Router();
 
@@ -11,7 +11,15 @@ export default function publicEventRoutes(
   router.get("/featured", async (req, res) => {
     try {
       const events = await eventsCollection
-        .find({ eventDate: { $gt: new Date() } })
+        .find({
+          eventDate: {
+            $gte: new Date(
+              new Date().getFullYear(),
+              new Date().getMonth(),
+              new Date().getDate(),
+            ),
+          },
+        })
         .sort({ eventDate: 1 })
         .limit(6)
         .toArray();
@@ -56,7 +64,15 @@ export default function publicEventRoutes(
   router.get("/", async (req, res) => {
     try {
       const events = await eventsCollection
-        .find({ eventDate: { $gt: new Date() } })
+        .find({
+          eventDate: {
+            $gte: new Date(
+              new Date().getFullYear(),
+              new Date().getMonth(),
+              new Date().getDate(),
+            ),
+          },
+        })
         .sort({ eventDate: 1 })
         .toArray();
 
