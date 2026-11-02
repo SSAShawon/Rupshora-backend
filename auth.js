@@ -1,3 +1,4 @@
+
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 
@@ -13,12 +14,8 @@ export function createAuth(db) {
       "https://rupshora-khulna.vercel.app",
     ],
 
-    advanced: {
-      defaultCookieAttributes: {
-        sameSite: "none",
-        secure: true,
-        httpOnly: true,
-      },
+    account: {
+      storeStateStrategy: "database",
     },
 
     emailAndPassword: {
