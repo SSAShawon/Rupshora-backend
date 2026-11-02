@@ -28,6 +28,8 @@ export function createAuth(db) {
 
     emailAndPassword: {
       enabled: true,
+      minPasswordLength: 6,
+      maxPasswordLength: 128,
     },
 
     socialProviders: {
@@ -37,8 +39,6 @@ export function createAuth(db) {
       },
     },
 
-    plugins: [
-      jwt()
-    ],
+    plugins: [jwt()],
   });
 }
